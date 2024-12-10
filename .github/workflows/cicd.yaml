@@ -35,7 +35,7 @@ jobs:
       - name: Pull Safety Docker image
         run: docker pull hysnsec/safety
       - name: Run Safety
-        run: docker run --rm -v ${{ github.workspace }}:/src hysnsec/safety check -r requirements.txt --json --save-json sca-safety-output.json 
+        run: docker run --rm -v $(pwd):/src hysnsec/safety check -r requirements.txt --json --save-json sca-safety-output.json 
       - name: Upload Safety Results
         uses: actions/upload-artifact@v3
         with:
