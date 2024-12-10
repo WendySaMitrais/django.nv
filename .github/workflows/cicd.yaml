@@ -25,6 +25,24 @@ jobs:
           pip install -r requirements.txt
           python manage.py check
 
+  # Software Component Analysis
+  sca-safety:
+    name: Software Component Analysis - Safety
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Pull Safety Docker image
+        run: docker pull hysnsec/safety
+      - name: Run Safety
+        run: docker run --rm -v ${{ github.workspace }}:/src hysnsec/safety check -r requirements.txt --json --save-json sca-safety-output.json 
+      - name: Upload Safety Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: sca-safety-output.json
+          path: sca-safety-result.json
+        if: always()
+
   test:
     name: Test Python Project
     runs-on: ubuntu-20.04
