@@ -61,7 +61,7 @@ jobs:
       - name: Run RetireJS
         run: retire --severity high --outputformat json --outputpath sca-retirejs-output.json
         continue-on-error: true                # Aiming DevSecOps maturity model level 1-2
-      - name: Upload Safety Results
+      - name: Upload RetireJS Results
         uses: actions/upload-artifact@v4
         with:
           name: sca-retirejs-output.json
@@ -80,11 +80,29 @@ jobs:
       - name: Run Trufflehog
         run: docker run --rm -v $(pwd):/src hysnsec/trufflehog filesystem /src --json --fail --no-update | tee sast-trufflehog-output.json
         continue-on-error: true 
-      - name: Upload Safety Results
+      - name: Upload Trufflehog Results
         uses: actions/upload-artifact@v4
         with:
           name: sast-trufflehog-output.json
           path: sast-trufflehog-output.json
+        if: always()
+
+  sast-bandit:
+    name: Static Application Security Testing - Bandit
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Pull Bandit Docker image
+        run: docker pull hysnsec/bandit
+      - name: Run Bandit
+        run: docker run --rm --user $(id -u):$(id -g) -v $(pwd):/src hysnsec/bandit -r /src -f json -o /src/sast-bandit-output.json
+        continue-on-error: true
+      - name: Upload Bandit Results
+        uses: actions/upload-artifact@4
+        with:
+          name: sast-bandit-output.json
+          path: sast-bandit-output.json
         if: always()
 
   test:
