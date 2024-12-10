@@ -8,14 +8,14 @@ on:
 jobs:
   build:
     name: Build Python Project
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.13.1
+          python-version: 3.6
       - name: Upgrade virtualenv
         run: pip install --upgrade virtualenv
       - name: Build project
@@ -27,14 +27,14 @@ jobs:
 
   test:
     name: Test Python Project
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.13.1
+          python-version: 3.6
       - name: Upgrade virtualenv
         run: pip install --upgrade virtualenv
       - name: Test project
