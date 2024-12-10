@@ -27,7 +27,7 @@ jobs:
 
   # Software Component Analysis
   sca-safety:
-    name: Software Component Analysis - Safety
+    name: SCA - Safety
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
@@ -45,7 +45,7 @@ jobs:
         if: always()
   
   sca-retire:
-    name: Software Component Analysis - RetireJS
+    name: SCA - RetireJS
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
@@ -70,7 +70,7 @@ jobs:
 
 # Static Application Security Testing 
   sast-trufflehog:
-    name: Static Application Security Testing - Trufflehog
+    name: SAST - Trufflehog
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
@@ -88,7 +88,7 @@ jobs:
         if: always()
 
   sast-bandit:
-    name: Static Application Security Testing - Bandit
+    name: SAST- Bandit
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
