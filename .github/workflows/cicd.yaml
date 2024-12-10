@@ -99,7 +99,7 @@ jobs:
         run: docker run --rm --user $(id -u):$(id -g) -v $(pwd):/src hysnsec/bandit -r /src -f json -o /src/sast-bandit-output.json
         continue-on-error: true
       - name: Upload Bandit Results
-        uses: actions/upload-artifact@4
+        uses: actions/upload-artifact@v4
         with:
           name: sast-bandit-output.json
           path: sast-bandit-output.json
