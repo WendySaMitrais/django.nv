@@ -60,12 +60,31 @@ jobs:
         run: npm i
       - name: Run RetireJS
         run: retire --severity high --outputformat json --outputpath sca-retirejs-output.json
-        continue-on-error: true
+        continue-on-error: true                # Aiming DevSecOps maturity model level 1-2
       - name: Upload Safety Results
         uses: actions/upload-artifact@v4
         with:
           name: sca-retirejs-output.json
           path: sca-retirejs-output.json
+        if: always()
+
+# Static Application Security Testing 
+  sast-trufflehog:
+    name: Static Application Security Testing - Trufflehog
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Pull Trufflehog Docker image
+        run: docker pull hysnsec/trufflehog
+      - name: Run Trufflehog
+        run: docker run --rm -v $(pwd):/src hysnsec/trufflehog filesystem /src --json --fail --no-update | tee sast-trufflehog-output.json
+        continue-on-error: true 
+      - name: Upload Safety Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-trufflehog-output.json
+          path: sast-trufflehog-output.json
         if: always()
 
   test:
