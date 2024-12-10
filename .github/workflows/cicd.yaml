@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-    
+
 jobs:
   build:
     name: Build Python Project
@@ -36,12 +36,32 @@ jobs:
         run: docker pull hysnsec/safety
       - name: Run Safety
         run: docker run --rm -v $(pwd):/src hysnsec/safety check -r requirements.txt --json --save-json sca-safety-output.json 
-        continue-on-error: true
+        continue-on-error: true                   # Aiming DevSecOps maturity model level 1-2
       - name: Upload Safety Results
         uses: actions/upload-artifact@v4
         with:
           name: sca-safety-output.json
           path: sca-safety-output.json
+        if: always()
+  
+  sca-retire:
+    name: Software Component Analysis - RetireJS
+    runs-on: node:lts-alpine3.10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install RetireJS
+        run: npm i -g retire@latest
+      - name: Install Project's Node.js Dependencies
+        run: npm i
+      - name: Run RetireJS
+        run: retire --severity high --outputformat json --outputpath sca-retirejs-output.json
+        continue-on-error: true
+      - name: Upload Safety Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-retirejs-output.json
+          path: sca-retirejs-output.json
         if: always()
 
   test:
@@ -62,5 +82,3 @@ jobs:
           source env/bin/activate
           pip install -r requirements.txt
           python manage.py test taskManager
-
-        
