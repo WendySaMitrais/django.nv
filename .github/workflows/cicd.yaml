@@ -37,11 +37,12 @@ jobs:
       - name: Run Safety
         run: docker run --rm -v $(pwd):/src hysnsec/safety check -r requirements.txt --json --save-json sca-safety-output.json 
       - name: Upload Safety Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sca-safety-output.json
           path: sca-safety-output.json
         if: always()
+        continue-on-error: true         # Aiming DevSecOps maturity model level 1-2
 
   test:
     name: Test Python Project
