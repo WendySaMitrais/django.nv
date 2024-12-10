@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: sca-safety-output.json
-          path: sca-safety-result.json
+          path: sca-safety-output.json
         if: always()
 
   test:
