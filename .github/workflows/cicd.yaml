@@ -1,0 +1,47 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    
+jobs:
+  build:
+    name: Build Python Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.6
+      - name: Upgrade virtualenv
+        run: pip install --upgrade virtualenv
+      - name: Build project
+        run: |
+          virtualenv env
+          source env/bin/activate
+          pip install -r requirements.txt
+          python manage.py check
+
+  test:
+    name: Test Python Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.6
+      - name: Upgrade virtualenv
+        run: pip install --upgrade virtualenv
+      - name: Test project
+        run: |
+          virtualenv env
+          source env/bin/activate
+          pip install -r requirements.txt
+          python manage.py test taskManager
+
+        
