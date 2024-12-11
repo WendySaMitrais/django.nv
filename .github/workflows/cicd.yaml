@@ -108,6 +108,7 @@ jobs:
   test:
     name: Test Python Project
     runs-on: ubuntu-20.04
+    needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -123,3 +124,18 @@ jobs:
           source env/bin/activate
           pip install -r requirements.txt
           python manage.py test taskManager
+  
+  # release:
+  #   name: Package the Web App as a Docker Image
+  #   runs-on: ubuntu-20.04
+  # build-docker-image:
+  #   name: Build and push the Docker image
+  #   steps:
+  #     - name: 
+
+  # deploy:
+  #   name: Deploy the latest image and run the container
+  #   steps:
+
+  # TODO: Deploy to Azure App Services
+  # TODO: Deploy to Azure VM Linux
