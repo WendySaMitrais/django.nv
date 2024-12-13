@@ -6,12 +6,225 @@ services:
 stages:
   - build
   - test
-  - release
-  - preprod
   - integration
-  - prod
+  - deploy
+  - dastscan
 
-job:
+build:
   stage: build
+  image: python:3.6
+  before_script:
+    - echo "Upgrading virtualenv..."
+    - pip3 install --upgrade virtualenv
   script:
-    - echo "I'm a job"
+    - echo "Building the python project ..."
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py check          # verify the application's functionality
+
+# Software Component Analysis
+sca-safety:
+  stage: build
+  needs: ["build"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - docker pull hysnsec/safety
+  script:
+    - docker run --rm -v $(pwd):/src hysnsec/safety check -r requirements.txt --json --save-json sca-safety-result.json
+  artifacts:
+    paths: [sca-safety-result.json]
+    expire_in: one week
+    when: always
+  allow_failure: true   # Aiming DevSecOps maturity model level 1-2
+
+sca-retire:
+  stage: build
+  needs: ["build"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  image: node:alpine3.10
+  before_script:
+    - npm install
+    - npm i -g retire@5.2.5 # Install retirejs npm package
+  script:
+    - retire --severity high --outputformat json --outputpath sca-retire-output.json
+  artifacts:
+    paths: [sca-retire-output.json]
+    expire_in: one week
+    when: always
+  allow_failure: true   # Aiming DevSecOps maturity model level 1-2
+
+# Static Application Security Testing
+sast-trufflehog:
+  stage: build
+  needs: ["build"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - apk add git
+    - git checkout main
+    - docker pull hysnsec/trufflehog
+  script:
+    - docker run --rm -v $(pwd):/src hysnsec/trufflehog filesystem /src --json --fail --no-update | tee sast-trufflehog-output.json
+  artifacts:
+    paths: [sast-trufflehog-output.json]
+    when: always
+    expire_in: one week
+  allow_failure: true # Aiming DevSecOps maturity model level 1-2
+
+sast-bandit:
+  stage: build
+  needs: ["build"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - docker pull hysnsec/bandit
+  script:
+    - docker run --rm --user $(id -u):$(id -g) -v $(pwd):/src hysnsec/bandit -r /src -f json -o /src/sast-bandit-output.json
+  artifacts:
+    paths: [sast-bandit-output.json]
+    expire_in: one week
+    when: always
+  allow_failure: true # Aiming DevSecOps maturity model level 1-2
+
+test:
+  stage: test
+  needs: ["build", "sca-safety", "sca-retire", "sast-trufflehog", "sast-bandit" ]
+  retry:
+    max: 2
+    when: runner_system_failure
+  image: python:3.6
+  before_script:
+    - echo "Upgrading virtualenv..."
+    - pip3 install --upgrade virtualenv
+  script:
+    - virtualenv env
+    - source env/bin/activate
+    - pip install -r requirements.txt
+    - python manage.py test taskManager
+
+integration:
+  stage: integration
+  script:
+    - echo "This is the stage where integration is happened"
+    - exit 1                          # Simulate integration stage got error (exit code > 0)
+  allow_failure: true                 # Simulate a False Positive 
+
+# Building Docker Image of the Web Application and Push it into private docker registry
+release:
+  stage: integration
+  needs: ["test"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY_HOSTNAME -u $CI_REGISTRY_USER --password-stdin 
+  script:
+  #  - docker build -t $CI_REGISTRY_HOSTNAME/$CI_PROJECT_NAME:$CI_PIPELINE_ID .  # Build the application into Docker image and tagged with pipeline's ID
+  #  - docker push $CI_REGISTRY_HOSTNAME/$CI_PROJECT_NAME:$CI_PIPELINE_ID        # Push the image which is tagged with piepline's ID, into registry
+    - docker build -t $CI_REGISTRY_HOSTNAME/$CI_PROJECT_NAME:latest .  # Build the application into Docker image and tagged as 'latest' version.
+    - docker push $CI_REGISTRY_HOSTNAME/$CI_PROJECT_NAME:latest        # Push the image which is tagged as 'latest', into registry
+
+deploy:
+  stage: deploy
+  needs: ["release"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  image: kroniak/ssh-client:latest
+  # environment: production
+  only:
+    - main
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$PROD_PRIVATEKEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+  script:
+    - echo 
+    - |
+       ssh $PROD_USERNAME@$PROD_HOSTNAME << EOF
+         echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY_HOSTNAME -u $CI_REGISTRY_USER --password-stdin
+         docker pull $CI_REGISTRY_HOSTNAME/$CI_PROJECT_NAME:latest
+         docker rm -f $CI_PROJECT_NAME
+         docker run --rm -d -p 8000:8000 --name $CI_PROJECT_NAME $CI_REGISTRY_HOSTNAME/$CI_PROJECT_NAME:latest 
+       EOF
+  when: always                          # Continuous Deployment
+# deploy:
+#   stage: deploy
+#   script:
+#     - echo "This is the stage where the built app is deployed when approved (continuous Delivery)."
+#   when: manual                        # Continuous delivery
+
+# Dynamic Application Security Testings - Run against PROD right after Deploy job is finished
+dast-nikto:
+  stage: dastscan
+  needs: ["deploy"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - docker pull hysnsec/nikto
+  script:
+    - docker run --rm -v $(pwd):/tmp hysnsec/nikto -h https://$TARGET_URL/ -o /tmp/dast-nikto-output.xml
+  artifacts:
+    paths: [dast-nikto-output.xml]
+    expire_in: one week
+    when: always
+  allow_failure: true                # Aiming DevSecOps maturity model level 1-2
+
+dast-sslyze:
+  stage: dastscan
+  needs: ["deploy"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - docker pull hysnsec/sslyze
+  script:
+    - docker run --rm -v $(pwd):/tmp hysnsec/sslyze $TARGET_URL:443 --json_out /tmp/dast-sslyze-output.json
+  artifacts:
+    paths: [dast-sslyze-output.json]
+    expire_in: one week
+    when: always
+  allow_failure: true
+
+dast-nmap:
+  stage: dastscan
+  needs: ["deploy"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - docker pull hysnsec/nmap
+  script:
+    - docker run --rm -v $(pwd):/tmp hysnsec/nmap $TARGET_URL -oX /tmp/dast-nmap-output.xml
+  artifacts:
+    paths: [dast-nmap-output.xml]
+    expire_in: one week
+    when: always
+  allow_failure: true
+
+dast-zap-baseline:
+  stage: dastscan
+  needs: ["deploy"]
+  retry:
+    max: 2
+    when: runner_system_failure
+  before_script:
+    - docker pull softwaresecurityproject/zap-stable:2.14.0
+  script:
+    - docker run --rm --user $(id -u):$(id -g) -w /zap -v $(pwd):/zap/wrk:rw softwaresecurityproject/zap-stable:2.14.0 zap-baseline.py -t https://$TARGET_URL -J dast-zap-baseline-output.json
+  artifacts:
+    paths: [dast-zap-baseline-output.json]
+    expire_in: one week
+    when: always
+  allow_failure: true
