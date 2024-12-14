@@ -129,11 +129,11 @@ jobs:
           pip install -r requirements.txt
           python manage.py test taskManager
   
-  release:
-    name: Package the Web App as a Docker Image
+  releaseToDockerHub:
+    name: Package the Web App as a Docker Image and Push it into Docker Hub
     runs-on: ubuntu-20.04
     needs: test
-    environment: Build
+    environment: Build    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3      
@@ -155,14 +155,31 @@ jobs:
           push: true
           tags: ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
 
-  # build-docker-image:
-  #   name: Build and push the Docker image
-  #   steps:
-  #     - name: 
+  deployToPracticalDevSecOpsProd:
+    name: Re-run the app container on Practical DevSecOps's Prod Machine
+    runs-on: ubuntu-20.04
+    needs: releaseToDockerHub
+    environment: PracticalDevSecOps
+    steps:
+      - name: Copying SSH Private Key from Secret Variable
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{secrets.PROD_PRIVATEKEY}}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+          ssh-keyscan -t rsa ${{secrets.PROD_HOSTNAME}} >> ~/.ssh/known_hosts
+      - name: SSH Prod Machine and re-run container
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{secrets.PROD_HOSTNAME}}
+          username: ${{secrets.PROD_USERNAME}}
+          script: |
+            echo ${{secrets.DOCKERHUB_PASSWORD}} | docker login -u ${{secrets.DOCKERHUB_USERNAME}} --password-stdin
+            docker pull ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
+            docker rm -f $${{github.event.repository.name}}
+            docker run --rm -d -p 8000:8000 --name $${{github.event.repository.name}} ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
 
-  # deploy:
-  #   name: Deploy the latest image and run the container
-  #   steps:
-
+  # TODO: DAST Jobs
   # TODO: Deploy to Azure App Services
   # TODO: Deploy to Azure VM Linux
