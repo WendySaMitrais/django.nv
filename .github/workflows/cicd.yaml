@@ -164,21 +164,25 @@ jobs:
       - name: Copying SSH Private Key from Secret Variable
         run: |
           mkdir -p ~/.ssh
-          echo "${{secrets.PROD_PRIVATEKEY}}" > ~/.ssh/id_rsa
+          echo "$PROD_PRIVATEKEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           eval "$(ssh-agent -s)"
           ssh-add ~/.ssh/id_rsa
-          ssh-keyscan -t rsa ${{secrets.PROD_HOSTNAME}} >> ~/.ssh/known_hosts
-      - name: SSH Prod Machine and re-run container
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{secrets.PROD_HOSTNAME}}
-          username: ${{secrets.PROD_USERNAME}}
-          script: |
-            echo ${{secrets.DOCKERHUB_PASSWORD}} | docker login -u ${{secrets.DOCKERHUB_USERNAME}} --password-stdin
-            docker pull ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
-            docker rm -f $${{github.event.repository.name}}
-            docker run --rm -d -p 8000:8000 --name $${{github.event.repository.name}} ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
+          ssh-keyscan -t rsa $PROD_HOSTNAME >> ~/.ssh/known_hosts
+        shell: bash
+        env:
+          PROD_PRIVATEKEY: ${{secrets.PROD_PRIVATEKEY}}
+          PROD_HOSTNAME: ${{secrets.PROD_HOSTNAME}}
+      # - name: SSH Prod Machine and re-run container
+        # uses: appleboy/ssh-action@v1.2.0
+        # with:
+        #   host: ${{secrets.PROD_HOSTNAME}}
+        #   username: ${{secrets.PROD_USERNAME}}
+        #   script: |
+        #     echo ${{secrets.DOCKERHUB_PASSWORD}} | docker login -u ${{secrets.DOCKERHUB_USERNAME}} --password-stdin
+        #     docker pull ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
+        #     docker rm -f $${{github.event.repository.name}}
+        #     docker run --rm -d -p 8000:8000 --name $${{github.event.repository.name}} ${{secrets.DOCKERHUB_USERNAME}}/${{github.event.repository.name}}:latest
 
   # TODO: DAST Jobs
   # TODO: Deploy to Azure App Services
