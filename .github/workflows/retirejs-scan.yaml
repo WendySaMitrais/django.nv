@@ -58,7 +58,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Safety
+          name: RetireJS
           path: sca-retirejs-results.json
         if: always()                        # what is this for?
 
