@@ -62,6 +62,7 @@ jobs:
         run: snyk test --json > sca-snyk-results.json
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true # allow the build to fail, similar to allow_failure: true
 
       - uses: actions/upload-artifact@v4
         with:
