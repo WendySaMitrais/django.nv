@@ -41,6 +41,19 @@ jobs:
           pip install -r requirements.txt
           python manage.py test taskManager
 
+  nuclei-scan:
+    runs-on: ubuntu-20.04
+    needs: test
+    steps:
+      - run: |
+            docker run --user $(id -u):$(id -g) -w /nuclei -v $(pwd):/nuclei:rw --rm projectdiscovery/nuclei:v2.9.6 -u ${{secrets.PROD_URL}} -j -o nuclei-output.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuclei scan
+          path: nuclei-output.json
+        if: always()        # what is this for?        
+
   integration:
     runs-on: ubuntu-20.04
     needs: test
