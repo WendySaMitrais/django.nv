@@ -41,6 +41,21 @@ jobs:
           pip install -r requirements.txt
           python manage.py test taskManager
 
+  zap_baseline:
+    runs-on: ubuntu-20.04
+    needs: test
+    steps:
+      - run: |
+          docker pull softwaresecurityproject/zap-stable:2.14.0
+          docker run --user root --rm -v $(pwd):/zap/wrk:rw -w /zap softwaresecurityproject/zap-stable:2.14.0 zap-baseline.py -t ${{ secrets.PROD_URL }} -J zap-output.json
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZAP Scan
+          path: zap-output.json
+        if: always()        # what is this for?          
+
   integration:
     runs-on: ubuntu-20.04
     needs: test
